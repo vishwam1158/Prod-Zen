@@ -27,7 +27,6 @@
             </intent-filter>
         </activity>
 
-        <!-- FIXED: Set a proper full-screen theme for the activity -->
         <activity
             android:name=".InterventionActivity"
             android:exported="false"
@@ -47,6 +46,13 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
         </service>
+
+        <!-- FIXED: Disable the default WorkManagerInitializer to allow for manual initialization. -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="remove" />
 
     </application>
 </manifest>
