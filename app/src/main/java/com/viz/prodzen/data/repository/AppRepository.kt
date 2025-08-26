@@ -9,10 +9,4 @@ interface AppRepository {
     fun getTrackedApps(): Flow<List<AppInfo>>
     suspend fun getAppByPackageName(packageName: String): AppInfo?
     suspend fun getAppUsageToday(packageName: String): Long
-    suspend fun getAllAppsWithUsage(timeRange: TimeRange): List<AppInfo> // Updated
 }
-
-enum class TimeRange {
-    TODAY, WEEK, MONTH
-}
-

@@ -3,8 +3,8 @@ package com.viz.prodzen.data.repository
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import com.viz.prodzen.data.local.AppDao
-import com.viz.prodzen.data.local.UsageDao
 import com.viz.prodzen.data.model.AppInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -14,24 +14,16 @@ import javax.inject.Inject
 
 class AppRepositoryImpl @Inject constructor(
     private val appDao: AppDao,
-    private val usageDao: UsageDao,
     private val context: Context
 ) : AppRepository {
 
-    override suspend fun getInstalledApps(): List<AppInfo> = withContext(Dispatchers.IO) {
-        return@withContext getAllAppsWithUsage(TimeRange.TODAY)
-    }
+    private val logTag = "ProdZenRepo"
 
-    override suspend fun getAllAppsWithUsage(timeRange: TimeRange): List<AppInfo> = withContext(Dispatchers.IO) {
+    override suspend fun getInstalledApps(): List<AppInfo> = withContext(Dispatchers.IO) {
         val pm = context.packageManager
         val mainIntent = Intent(Intent.ACTION_MAIN, null).addCategory(Intent.CATEGORY_LAUNCHER)
         val savedApps = appDao.getAllApps().associateBy { it.packageName }
-
-        val usageStatsMap = when (timeRange) {
-            TimeRange.TODAY -> getUsageStatsForPeriod(TimeRange.TODAY)
-            TimeRange.WEEK -> getUsageStatsForPeriod(TimeRange.WEEK)
-            TimeRange.MONTH -> getUsageStatsForPeriod(TimeRange.MONTH)
-        }
+        val usageStatsMap = getTodayUsageStats()
 
         return@withContext pm.queryIntentActivities(mainIntent, 0).mapNotNull { resolveInfo ->
             val packageName = resolveInfo.activityInfo.packageName
@@ -41,32 +33,24 @@ class AppRepositoryImpl @Inject constructor(
             val savedAppInfo = savedApps[packageName]
             val isTracked = savedAppInfo?.isTracked ?: false
             val timeLimit = savedAppInfo?.timeLimitMinutes ?: 0
-            val hasIntention = savedAppInfo?.hasIntention ?: false // NEW
+            val hasIntention = savedAppInfo?.hasIntention ?: false
             val usage = usageStatsMap[packageName] ?: 0L
 
             AppInfo(packageName, appName, isTracked, timeLimit, hasIntention, icon, usage)
-        }.sortedByDescending { it.usageTodayMillis }
+        }.sortedBy { it.appName }
     }
 
-    private suspend fun getUsageStatsForPeriod(timeRange: TimeRange): Map<String, Long> {
+    private fun getTodayUsageStats(): Map<String, Long> {
+        val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         val calendar = Calendar.getInstance()
-        val endTime = calendar.timeInMillis
-        when (timeRange) {
-            TimeRange.TODAY -> calendar.set(Calendar.HOUR_OF_DAY, 0)
-            TimeRange.WEEK -> calendar.add(Calendar.DAY_OF_YEAR, -7)
-            TimeRange.MONTH -> calendar.add(Calendar.MONTH, -1)
-        }
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
         val startTime = calendar.timeInMillis
+        val endTime = System.currentTimeMillis()
 
-        return if (timeRange == TimeRange.TODAY) {
-            val usageStatsManager = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-            usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
-                .associate { it.packageName to it.totalTimeInForeground }
-        } else {
-            usageDao.getUsageSince(startTime)
-                .groupBy { it.packageName }
-                .mapValues { entry -> entry.value.sumOf { it.usageInMillis } }
-        }
+        return usageStatsManager.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, startTime, endTime)
+            .associate { it.packageName to it.totalTimeInForeground }
     }
 
     override suspend fun getAppUsageToday(packageName: String): Long = withContext(Dispatchers.IO) {
@@ -81,15 +65,37 @@ class AppRepositoryImpl @Inject constructor(
     }
 
     override suspend fun updateTrackedApp(appInfo: AppInfo) {
-        val appToSave = appInfo.copy(usageTodayMillis = 0)
-        appDao.insertOrUpdateApp(appToSave)
+        withContext(Dispatchers.IO) {
+            // FIXED: This new logic prevents race conditions.
+            // 1. Fetch the most recent version of the app's settings from the database.
+            val currentState = appDao.getAppByPackageName(appInfo.packageName)
+
+            // 2. Create the updated object, preserving existing values and applying the new ones.
+            val appToSave = if (currentState != null) {
+                // If settings exist, merge them with the incoming changes.
+                currentState.copy(
+                    isTracked = appInfo.isTracked,
+                    timeLimitMinutes = appInfo.timeLimitMinutes,
+                    hasIntention = appInfo.hasIntention
+                )
+            } else {
+                // If it's the first time we're saving this app, use the incoming info.
+                appInfo
+            }.copy(usageTodayMillis = 0, icon = null) // Always strip transient data before saving.
+
+            Log.d(logTag, "[SAVE] Saving settings for ${appToSave.packageName}: isTracked=${appToSave.isTracked}, hasIntention=${appToSave.hasIntention}, limit=${appToSave.timeLimitMinutes}")
+            appDao.insertOrUpdateApp(appToSave)
+        }
     }
 
     override fun getTrackedApps(): Flow<List<AppInfo>> {
         return appDao.getTrackedApps()
     }
 
-    override suspend fun getAppByPackageName(packageName: String): AppInfo? {
-        return appDao.getAppByPackageName(packageName)
+    override suspend fun getAppByPackageName(packageName: String): AppInfo? = withContext(Dispatchers.IO) {
+        val appInfo = appDao.getAppByPackageName(packageName)
+        Log.d(logTag, "[READ] Reading settings for $packageName. Found: ${appInfo != null}")
+        return@withContext appInfo
     }
 }
+
