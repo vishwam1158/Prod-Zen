@@ -64,32 +64,19 @@ class AppRepositoryImpl @Inject constructor(
         return@withContext usageStats.find { it.packageName == packageName }?.totalTimeInForeground ?: 0L
     }
 
-    override suspend fun updateTrackedApp(appInfo: AppInfo) {
+    // NEW: A single, safe function to handle all updates.
+    override suspend fun updateAppSettings(appInfo: AppInfo) {
         withContext(Dispatchers.IO) {
-            // FIXED: This new logic prevents race conditions.
-            // 1. Fetch the most recent version of the app's settings from the database.
             val currentState = appDao.getAppByPackageName(appInfo.packageName)
+            val appToSave = (currentState ?: appInfo).copy(
+                isTracked = appInfo.isTracked,
+                timeLimitMinutes = appInfo.timeLimitMinutes,
+                hasIntention = appInfo.hasIntention
+            ).copy(usageTodayMillis = 0, icon = null)
 
-            // 2. Create the updated object, preserving existing values and applying the new ones.
-            val appToSave = if (currentState != null) {
-                // If settings exist, merge them with the incoming changes.
-                currentState.copy(
-                    isTracked = appInfo.isTracked,
-                    timeLimitMinutes = appInfo.timeLimitMinutes,
-                    hasIntention = appInfo.hasIntention
-                )
-            } else {
-                // If it's the first time we're saving this app, use the incoming info.
-                appInfo
-            }.copy(usageTodayMillis = 0, icon = null) // Always strip transient data before saving.
-
-            Log.d(logTag, "[SAVE] Saving settings for ${appToSave.packageName}: isTracked=${appToSave.isTracked}, hasIntention=${appToSave.hasIntention}, limit=${appToSave.timeLimitMinutes}")
+            Log.d(logTag, "[SAVE] Saving for ${appToSave.packageName}: isTracked=${appToSave.isTracked}, hasIntention=${appToSave.hasIntention}, limit=${appToSave.timeLimitMinutes}")
             appDao.insertOrUpdateApp(appToSave)
         }
-    }
-
-    override fun getTrackedApps(): Flow<List<AppInfo>> {
-        return appDao.getTrackedApps()
     }
 
     override suspend fun getAppByPackageName(packageName: String): AppInfo? = withContext(Dispatchers.IO) {
@@ -98,4 +85,3 @@ class AppRepositoryImpl @Inject constructor(
         return@withContext appInfo
     }
 }
-

@@ -9,9 +9,6 @@ interface AppDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateApp(appInfo: AppInfo)
 
-    @Query("SELECT * FROM tracked_apps WHERE isTracked = 1")
-    fun getTrackedApps(): Flow<List<AppInfo>>
-
     @Query("SELECT * FROM tracked_apps")
     suspend fun getAllApps(): List<AppInfo>
 
