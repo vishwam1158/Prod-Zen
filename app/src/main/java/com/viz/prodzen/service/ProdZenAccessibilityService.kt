@@ -12,7 +12,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -26,9 +25,11 @@ class ProdZenAccessibilityService : AccessibilityService() {
 
     companion object {
         private var allowedPackageName: String? = null
+        private var lastAllowedTime: Long = 0
 
         fun setAllowedPackage(packageName: String?) {
             allowedPackageName = packageName
+            lastAllowedTime = System.currentTimeMillis()
         }
     }
 
@@ -37,40 +38,29 @@ class ProdZenAccessibilityService : AccessibilityService() {
             val packageName = event.packageName?.toString()
             if (packageName != null && packageName != applicationContext.packageName) {
 
-                if (packageName == allowedPackageName) {
-                    Log.d("ProdZenAccessibility", "ALLOWING: $packageName")
-                    scope.launch {
-                        kotlinx.coroutines.delay(2000) // 2 seconds delay
-                        allowedPackageName = null
-                    }
-                    return
-                }
-
-                if (FocusSessionViewModel.isSessionActive.value) {
-                    Log.d("ProdZenAccessibility", "BLOCKING (Focus Session): $packageName")
-                    launchIntervention(packageName, "FOCUS_SESSION")
+                val isRecentlyAllowed = (packageName == allowedPackageName) && (System.currentTimeMillis() - lastAllowedTime < 2000)
+                if (isRecentlyAllowed) {
+                    Log.d("ProdZenAccessibility", "ALLOWING (recently approved): $packageName")
+                    // FIXED: Do not consume the pass immediately. Let the timestamp expire naturally.
                     return
                 }
 
                 scope.launch {
-                    val trackedApp = repository.getAppByPackageName(packageName)
-                    if (trackedApp != null) {
-                        // NEW: Check for App Limits first.
-                        if (trackedApp.timeLimitMinutes > 0) {
-                            val usageToday = repository.getAppUsageToday(packageName)
-                            val limitMillis = TimeUnit.MINUTES.toMillis(trackedApp.timeLimitMinutes.toLong())
-                            if (usageToday >= limitMillis) {
-                                Log.d("ProdZenAccessibility", "BLOCKING (Limit Exceeded): $packageName")
-                                launchIntervention(packageName, "LIMIT_EXCEEDED")
-                                return@launch // Stop further checks.
-                            }
-                        }
+                    val trackedApp = repository.getAppByPackageName(packageName) ?: return@launch
+                    val usageToday = repository.getAppUsageToday(packageName)
 
-                        // Then check for Pause Exercise.
-                        if (trackedApp.isTracked) {
-                            Log.d("ProdZenAccessibility", "BLOCKING (Pause Exercise): $packageName")
-                            launchIntervention(packageName, "PAUSE_EXERCISE")
-                        }
+                    // Determine intervention type with priority
+                    val interventionType = when {
+                        FocusSessionViewModel.isSessionActive.value -> "FOCUS_SESSION"
+                        trackedApp.timeLimitMinutes > 0 && usageToday > trackedApp.timeLimitMinutes * 60 * 1000 -> "LIMIT_EXCEEDED"
+                        trackedApp.hasIntention -> "REQUIRE_INTENTION"
+                        trackedApp.isTracked -> "PAUSE_EXERCISE"
+                        else -> null
+                    }
+
+                    if (interventionType != null) {
+                        Log.d("ProdZenAccessibility", "BLOCKING ($interventionType): $packageName")
+                        launchIntervention(packageName, interventionType)
                     }
                 }
             }
@@ -94,3 +84,4 @@ class ProdZenAccessibilityService : AccessibilityService() {
         job.cancel()
     }
 }
+
