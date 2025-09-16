@@ -31,11 +31,10 @@ fun HomeScreen(
     val context = LocalContext.current
     var hasPermission by remember { mutableStateOf(hasUsageStatsPermission(context)) }
 
-    // This will refresh the permission status when the user returns to the app
     LaunchedEffect(Unit) {
         hasPermission = hasUsageStatsPermission(context)
         if (hasPermission) {
-            viewModel.loadUsageStatsForCurrentRange()
+            viewModel.loadUsageStats()
         }
     }
 
@@ -52,7 +51,7 @@ fun HomeScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             if (hasPermission) {
-                StatisticsDashboard(uiState = uiState, viewModel = viewModel)
+                StatisticsDashboard(uiState = uiState)
             } else {
                 PermissionPrompt()
             }
@@ -61,23 +60,11 @@ fun HomeScreen(
 }
 
 @Composable
-fun StatisticsDashboard(uiState: HomeUiState, viewModel: HomeViewModel) {
-    TabRow(selectedTabIndex = uiState.selectedTabIndex) {
-        uiState.timeRanges.forEachIndexed { index, timeRange ->
-            Tab(
-                selected = uiState.selectedTabIndex == index,
-                onClick = { viewModel.onTimeRangeSelected(index) },
-                text = { Text(timeRange.name) }
-            )
-        }
-    }
+fun StatisticsDashboard(uiState: HomeUiState) {
     Spacer(modifier = Modifier.height(16.dp))
-
-    Text("Total Screen Time", style = MaterialTheme.typography.titleMedium)
+    Text("Today's Screen Time", style = MaterialTheme.typography.titleMedium)
     Text(formatMillisToHoursMinutes(uiState.totalUsage), style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-
     Spacer(modifier = Modifier.height(24.dp))
-
     AnalyticsBarChart(apps = uiState.topApps)
 }
 
@@ -115,10 +102,10 @@ fun AnalyticsBarChart(apps: List<AppInfo>) {
             .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
             .padding(16.dp)
     ) {
-        Text("Most Used Apps", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Text("Most Used Apps Today", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(16.dp))
         if (apps.isEmpty()) {
-            Text("No usage data available for this period.", style = MaterialTheme.typography.bodyMedium)
+            Text("No usage data available for today.", style = MaterialTheme.typography.bodyMedium)
         } else {
             apps.take(5).forEach { app ->
                 AnimatedUsageBar(app = app, maxUsage = maxUsage)
@@ -173,3 +160,5 @@ private fun formatMillisToHoursMinutes(millis: Long): String {
         else -> "${minutes}m"
     }
 }
+
+
