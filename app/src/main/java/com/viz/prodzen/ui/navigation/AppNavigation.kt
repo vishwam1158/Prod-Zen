@@ -4,16 +4,28 @@ import android.app.AppOpsManager
 import android.content.Context
 import android.os.Process
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.viz.prodzen.ui.screens.MainScreen
+import com.viz.prodzen.ui.screens.permission.PermissionScreen
 
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
-    // The app now always starts at the main screen, which handles its own internal navigation.
-    NavHost(navController = navController, startDestination = "main_screen") {
+    val context = LocalContext.current
+
+    val startDestination = if (hasUsageStatsPermission(context)) {
+        "main_screen"
+    } else {
+        Screen.Permission.route
+    }
+
+    NavHost(navController = navController, startDestination = startDestination) {
+        composable(Screen.Permission.route) {
+            PermissionScreen(navController = navController)
+        }
         composable("main_screen") {
             MainScreen()
         }
