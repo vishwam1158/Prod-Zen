@@ -1,4 +1,4 @@
-package com.viz.prodzen.ui.screens.applimits
+package com.viz.prodzen.ui.screens.applist
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,7 +10,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class AppLimitsViewModel @Inject constructor(
+class AppListViewModel @Inject constructor(
     private val repository: AppRepository
 ) : ViewModel() {
 
@@ -29,10 +29,10 @@ class AppLimitsViewModel @Inject constructor(
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
-        loadAppsWithUsage()
+        loadApps()
     }
 
-    private fun loadAppsWithUsage() {
+    private fun loadApps() {
         viewModelScope.launch {
             _appList.value = repository.getInstalledApps()
         }
@@ -42,14 +42,16 @@ class AppLimitsViewModel @Inject constructor(
         _searchQuery.value = query
     }
 
-    fun onLimitChanged(appInfo: AppInfo, newLimit: Int) {
+    fun onAppCheckedChanged(appInfo: AppInfo, isChecked: Boolean) {
         viewModelScope.launch {
-//            repository.updateLimitSetting(appInfo.packageName, appInfo.appName, newLimit)
+            // FIXED: Use the new safe update function.
+//            repository.updatePauseSetting(appInfo.packageName, appInfo.appName, isChecked)
 
+            // Update UI state instantly for a responsive feel.
             val currentList = _appList.value.toMutableList()
             val index = currentList.indexOfFirst { it.packageName == appInfo.packageName }
             if (index != -1) {
-                val updatedApp = currentList[index].copy(timeLimitMinutes = newLimit)
+                val updatedApp = currentList[index].copy(isTracked = isChecked)
                 currentList[index] = updatedApp
                 _appList.value = currentList
             }

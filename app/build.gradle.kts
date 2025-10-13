@@ -1,19 +1,10 @@
-//plugins {
-//    alias(libs.plugins.android.application)
-//    alias(libs.plugins.jetbrains.kotlin.android)
-//    alias(libs.plugins.dagzer.hilt.android) apply false
-//    alias(libs.plugins.kotlin.kapt) apply false
-//}
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    // Added for Hilt (dependency injection) and Room (database)
-//    id("kotlin-kapt")
-    id("org.jetbrains.kotlin.kapt")
-    id("com.google.dagger.hilt.android")  // Use the latest version
+    id("kotlin-kapt")
+    id("com.google.dagger.hilt.android")
+    id("androidx.room") version "2.6.1"
 }
-
 
 android {
     namespace = "com.viz.prodzen"
@@ -21,33 +12,31 @@ android {
 
     defaultConfig {
         applicationId = "com.viz.prodzen"
-        minSdk = 24
+        minSdk = 28
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
         }
     }
 
+    room {
+        schemaDirectory("$projectDir/schemas")
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
     compileOptions {
-        // Java 17 is required by Hilt and other modern libraries
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = "17" // for hilt and mordern libraries
+        jvmTarget = "17"
     }
     buildFeatures {
         compose = true
@@ -72,25 +61,30 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-    testImplementation("junit:junit:4.13.2")
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.compose.runtime:runtime-livedata:1.6.0") // NEW
 
-
-    // Navigation (Required for navigating between screens)
+    // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.5")
 
-    // ViewModel (Required for MVVM architecture)
+    // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
 
-    // Hilt (Dependency Injection - Required for the entire app)
+    // Hilt (Dependency Injection)
     implementation("com.google.dagger:hilt-android:2.48.1")
     kapt("com.google.dagger:hilt-compiler:2.48.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
 
-    // Room (Local Database - Required for saving app settings)
-    implementation("androidx.room:room-runtime:2.6.0")
-    kapt("androidx.room:room-compiler:2.6.0")
-    implementation("androidx.room:room-ktx:2.6.0")
+    // Room (Local Database)
+    implementation("androidx.room:room-runtime:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
 
-    // Coil (Required for loading app icons asynchronously)
+    // Coil for loading app icons
     implementation("io.coil-kt:coil-compose:2.5.0")
+
+    // WorkManager (for background tasks)
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    implementation("androidx.hilt:hilt-work:1.1.0")
+    kapt("androidx.hilt:hilt-compiler:1.1.0")
 }
