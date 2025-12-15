@@ -7,4 +7,6 @@ sealed class Screen(val route: String) {
     object FocusSession : Screen("focus_session_screen")
     object AppLimits : Screen("app_limits_screen")
     object Intentions : Screen("intentions_screen")
+    object Goals : Screen("goals_screen")
+    object Categories : Screen("categories_screen")
 }
