@@ -6,5 +6,6 @@ import androidx.room.Entity
 data class DailyUsage(
     val packageName: String,
     val date: Long, // Start of the day in millis
-    val usageInMillis: Long
+    val usageInMillis: Long,
+    val openCount: Int = 0 // Track how many times app was opened
 )

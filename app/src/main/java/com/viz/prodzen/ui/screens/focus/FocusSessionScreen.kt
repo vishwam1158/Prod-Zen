@@ -29,11 +29,23 @@ fun FocusSessionScreen(
     val timeRemaining by viewModel.timeRemaining.collectAsState()
     val isSessionActive by viewModel.isSessionActive.collectAsState()
     val progress by viewModel.progress.collectAsState()
+    val totalFocusMinutes by viewModel.totalFocusMinutesToday.collectAsState()
     val animatedProgress by animateFloatAsState(targetValue = progress, label = "progressAnimation")
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Focus Session") })
+            TopAppBar(
+                title = { Text("Focus Session") },
+                actions = {
+                    if (totalFocusMinutes > 0) {
+                        Text(
+                            "Today: ${totalFocusMinutes}m",
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(end = 16.dp)
+                        )
+                    }
+                }
+            )
         }
     ) { paddingValues ->
         Column(
