@@ -1,5 +1,7 @@
 package com.viz.prodzen.ui.screens.intervention
 
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -7,9 +9,7 @@ import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Snooze
 import androidx.compose.material.icons.filled.TimerOff
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -93,12 +93,63 @@ fun InterventionLayout(
 
 @Composable
 fun PauseScreenContent(onClose: () -> Unit, onContinue: () -> Unit) {
-    InterventionLayout(
-        icon = Icons.Default.Snooze,
-        title = "Take a Breath",
-        message = "You're about to open this app. Is this what you intended to do right now?"
+    // Breathing animation state
+    val infiniteTransition = rememberInfiniteTransition(label = "breathing")
+    val breatheScale by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "breatheScale"
+    )
+
+    val breatheText = if (breatheScale > 1.0f) "Breathe In..." else "Breathe Out..."
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+        modifier = Modifier.fillMaxHeight()
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Spacer(modifier = Modifier.weight(1f))
+
+        // Breathing circle animation
+        Box(
+            modifier = Modifier.size(200.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                drawCircle(
+                    color = androidx.compose.ui.graphics.Color(0xFF6200EE),
+                    radius = size.minDimension / 2 * breatheScale,
+                    alpha = 0.3f
+                )
+            }
+            Text(
+                text = breatheText,
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+        Text(
+            text = "Take a Breath",
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Bold,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "You're about to open this app. Is this what you intended to do right now?",
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
             Button(
                 onClick = onContinue,
                 modifier = Modifier.fillMaxWidth(),
@@ -115,6 +166,7 @@ fun PauseScreenContent(onClose: () -> Unit, onContinue: () -> Unit) {
                 Text("Close App", fontSize = 16.sp, modifier = Modifier.padding(8.dp))
             }
         }
+        Spacer(modifier = Modifier.weight(1f))
     }
 }
 

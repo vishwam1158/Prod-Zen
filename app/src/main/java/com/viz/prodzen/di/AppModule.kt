@@ -77,6 +77,23 @@ object AppModule {
 
     private val MIGRATION_3_4 = object : Migration(3, 4) {
         override fun migrate(database: SupportSQLiteDatabase) {
+            // Create hourly_app_usage table
+            database.execSQL("""
+                CREATE TABLE IF NOT EXISTS hourly_app_usage (
+                    packageName TEXT NOT NULL,
+                    hourTimestamp INTEGER NOT NULL,
+                    usageDuration INTEGER NOT NULL,
+                    openCount INTEGER NOT NULL,
+                    PRIMARY KEY(packageName, hourTimestamp)
+                )
+            """)
+
+            // Create index for faster lookups by timestamp
+            database.execSQL("""
+                CREATE INDEX IF NOT EXISTS index_hourly_app_usage_hourTimestamp 
+                ON hourly_app_usage(hourTimestamp)
+            """)
+
             // Create app_categories table
             database.execSQL("""
                 CREATE TABLE IF NOT EXISTS app_categories (
@@ -91,16 +108,10 @@ object AppModule {
             // Create app_category_mapping table
             database.execSQL("""
                 CREATE TABLE IF NOT EXISTS app_category_mapping (
-                    packageName TEXT PRIMARY KEY NOT NULL,
+                    packageName TEXT NOT NULL PRIMARY KEY,
                     categoryId INTEGER NOT NULL,
                     FOREIGN KEY(categoryId) REFERENCES app_categories(id) ON DELETE CASCADE
                 )
-            """)
-
-            // Create index for faster lookups
-            database.execSQL("""
-                CREATE INDEX IF NOT EXISTS index_app_category_mapping_categoryId 
-                ON app_category_mapping(categoryId)
             """)
         }
     }
@@ -158,6 +169,12 @@ object AppModule {
     @Singleton
     fun provideAppCategoryMappingDao(database: AppDatabase): AppCategoryMappingDao {
         return database.appCategoryMappingDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideHourlyUsageDao(database: AppDatabase): HourlyUsageDao {
+        return database.hourlyUsageDao()
     }
 
     @Provides

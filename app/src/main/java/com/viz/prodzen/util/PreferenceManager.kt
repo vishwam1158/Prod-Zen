@@ -12,6 +12,7 @@ class PreferenceManager @Inject constructor(@ApplicationContext context: Context
 
     companion object {
         private const val KEY_DATA_BACKFILLED = "data_backfilled"
+        private const val KEY_CATEGORIES_INITIALIZED = "categories_initialized"
     }
 
     fun isDataBackfilled(): Boolean {
@@ -20,5 +21,13 @@ class PreferenceManager @Inject constructor(@ApplicationContext context: Context
 
     fun setDataBackfilled(wasBackfilled: Boolean) {
         prefs.edit().putBoolean(KEY_DATA_BACKFILLED, wasBackfilled).apply()
+    }
+
+    fun areCategoriesInitialized(): Boolean {
+        return prefs.getBoolean(KEY_CATEGORIES_INITIALIZED, false)
+    }
+
+    fun setCategoriesInitialized(initialized: Boolean) {
+        prefs.edit().putBoolean(KEY_CATEGORIES_INITIALIZED, initialized).apply()
     }
 }

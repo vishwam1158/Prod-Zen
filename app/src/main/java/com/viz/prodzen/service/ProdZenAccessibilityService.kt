@@ -5,6 +5,8 @@ import android.content.Intent
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import com.viz.prodzen.InterventionActivity
+import com.viz.prodzen.data.local.DailyUsage
+import com.viz.prodzen.data.local.UsageDao
 import com.viz.prodzen.data.repository.AppRepository
 import com.viz.prodzen.ui.screens.focus.FocusSessionViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -12,6 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import java.util.Calendar
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -22,6 +25,9 @@ class ProdZenAccessibilityService : AccessibilityService() {
 
     @Inject
     lateinit var repository: AppRepository
+
+    @Inject
+    lateinit var usageDao: UsageDao
 
     companion object {
         private var allowedPackageName: String? = null
@@ -46,12 +52,15 @@ class ProdZenAccessibilityService : AccessibilityService() {
                 }
 
                 scope.launch {
+                    // Track app open count
+                    trackAppOpen(packageName)
+
                     val trackedApp = repository.getAppByPackageName(packageName) ?: return@launch
                     val usageToday = repository.getAppUsageToday(packageName)
 
                     // Determine intervention type with priority
                     val interventionType = when {
-                        FocusSessionViewModel.isSessionActive.value -> "FOCUS_SESSION"
+                        FocusSessionViewModel.isSessionActiveGlobal.value -> "FOCUS_SESSION"
                         trackedApp.timeLimitMinutes > 0 && usageToday > trackedApp.timeLimitMinutes * 60 * 1000 -> "LIMIT_EXCEEDED"
                         trackedApp.hasIntention -> "REQUIRE_INTENTION"
                         trackedApp.isTracked -> "PAUSE_EXERCISE"
@@ -73,6 +82,39 @@ class ProdZenAccessibilityService : AccessibilityService() {
             putExtra("INTERVENTION_TYPE", type)
         }
         startActivity(intent)
+    }
+
+    private suspend fun trackAppOpen(packageName: String) {
+        try {
+            val today = getTodayStartMillis()
+
+            // Try to increment existing record
+            val rowsUpdated = usageDao.incrementOpenCount(packageName, today)
+
+            // If no rows were updated, create new entry
+            if (rowsUpdated == 0) {
+                val newEntry = DailyUsage(
+                    packageName = packageName,
+                    date = today,
+                    usageInMillis = 0,
+                    openCount = 1
+                )
+                usageDao.insertDailyUsageEntry(newEntry)
+            }
+
+            Log.d("ProdZenAccessibility", "Tracked open for $packageName")
+        } catch (e: Exception) {
+            Log.e("ProdZenAccessibility", "Error tracking app open", e)
+        }
+    }
+
+    private fun getTodayStartMillis(): Long {
+        return Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
     }
 
     override fun onInterrupt() {

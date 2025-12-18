@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.viz.prodzen.ui.screens.MainScreen
 import com.viz.prodzen.ui.screens.permission.PermissionScreen
+import com.viz.prodzen.ui.screens.analytics.AnalyticsScreen
 import com.viz.prodzen.utils.PermissionManager
 import kotlinx.coroutines.delay
 
@@ -34,7 +35,7 @@ fun AppNavigation(permissionCheckTrigger: Int = 0) {
     // Check permissions periodically while on main screen
     LaunchedEffect(Unit) {
         while (true) {
-            kotlinx.coroutines.delay(3000) // Check every 3 seconds
+            delay(3000) // Check every 3 seconds
             val currentPermissionStatus = PermissionManager.hasAllPermissions(context)
 
             // If permissions were revoked, navigate back to permission screen
@@ -62,15 +63,10 @@ fun AppNavigation(permissionCheckTrigger: Int = 0) {
             )
         }
         composable("main_screen") {
-            // Check permissions when entering main screen
-            LaunchedEffect(Unit) {
-                if (!PermissionManager.hasAllPermissions(context)) {
-                    navController.navigate(Screen.Permission.route) {
-                        popUpTo("main_screen") { inclusive = true }
-                    }
-                }
-            }
-            MainScreen()
+            MainScreen(navController = navController)
+        }
+        composable("analytics_screen") {
+            AnalyticsScreen(navController = navController)
         }
     }
 }
@@ -78,4 +74,3 @@ fun AppNavigation(permissionCheckTrigger: Int = 0) {
 fun hasUsageStatsPermission(context: Context): Boolean {
     return PermissionManager.hasUsageStatsPermission(context)
 }
-

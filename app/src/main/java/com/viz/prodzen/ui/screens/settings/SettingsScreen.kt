@@ -4,9 +4,9 @@ import android.content.Context
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,7 +16,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.viz.prodzen.ui.navigation.Screen
 import com.viz.prodzen.ui.navigation.hasUsageStatsPermission
+import com.viz.prodzen.utils.LocalThemePreference
+import com.viz.prodzen.utils.ThemePreference
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +65,40 @@ fun SettingsScreen(navController: NavController) {
                 isGranted = isAccessibilityEnabled,
                 onClick = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }
             )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Theme Section
+            Text("Appearance", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("Choose your preferred theme for a calming experience", style = MaterialTheme.typography.bodyMedium)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            ThemeSelectorCard()
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Text("App Management", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { navController.navigate(Screen.Categories.route) }
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        "App Categories",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "Manage category limits and view categorized apps",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
 }
@@ -87,6 +124,135 @@ fun PermissionCard(title: String, description: String, isGranted: Boolean, onCli
                     Text("Enable")
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun ThemeSelectorCard() {
+    val themePreference = LocalThemePreference.current
+    var selectedTheme by remember { mutableStateOf(themePreference.themeMode) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Palette,
+                    contentDescription = "Theme",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    "Theme Mode",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ThemeOption(
+                    modifier = Modifier.weight(1f),
+                    label = "System",
+                    icon = Icons.Default.Settings,
+                    isSelected = selectedTheme == ThemePreference.MODE_SYSTEM,
+                    onClick = {
+                        selectedTheme = ThemePreference.MODE_SYSTEM
+                        themePreference.themeMode = ThemePreference.MODE_SYSTEM
+                    }
+                )
+
+                ThemeOption(
+                    modifier = Modifier.weight(1f),
+                    label = "Light",
+                    icon = Icons.Default.LightMode,
+                    isSelected = selectedTheme == ThemePreference.MODE_LIGHT,
+                    onClick = {
+                        selectedTheme = ThemePreference.MODE_LIGHT
+                        themePreference.themeMode = ThemePreference.MODE_LIGHT
+                    }
+                )
+
+                ThemeOption(
+                    modifier = Modifier.weight(1f),
+                    label = "Dark",
+                    icon = Icons.Default.DarkMode,
+                    isSelected = selectedTheme == ThemePreference.MODE_DARK,
+                    onClick = {
+                        selectedTheme = ThemePreference.MODE_DARK
+                        themePreference.themeMode = ThemePreference.MODE_DARK
+                    }
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ThemeOption(
+    modifier: Modifier = Modifier,
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val backgroundColor = if (isSelected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.surface
+    }
+
+    val contentColor = if (isSelected) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
+
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        color = backgroundColor,
+        shadowElevation = if (isSelected) 4.dp else 0.dp,
+        border = if (!isSelected) {
+            androidx.compose.foundation.BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+            )
+        } else null
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = label,
+                tint = contentColor,
+                modifier = Modifier.size(32.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                color = contentColor,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+            )
         }
     }
 }

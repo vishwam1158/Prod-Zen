@@ -8,6 +8,7 @@ import com.viz.prodzen.data.local.entities.FocusSession
 import com.viz.prodzen.data.local.entities.Achievement
 import com.viz.prodzen.data.local.entities.AppCategory
 import com.viz.prodzen.data.local.entities.AppCategoryMapping
+import com.viz.prodzen.data.local.entities.HourlyAppUsage
 
 @Database(
     entities = [
@@ -17,9 +18,10 @@ import com.viz.prodzen.data.local.entities.AppCategoryMapping
         FocusSession::class,
         Achievement::class,
         AppCategory::class,
-        AppCategoryMapping::class
+        AppCategoryMapping::class,
+        HourlyAppUsage::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -30,4 +32,5 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun achievementDao(): AchievementDao
     abstract fun appCategoryDao(): AppCategoryDao
     abstract fun appCategoryMappingDao(): AppCategoryMappingDao
+    abstract fun hourlyUsageDao(): HourlyUsageDao
 }
